@@ -41,6 +41,8 @@ extern bool pci_bar_is64(pcidevaddr_t dev, int bar_num);
 extern bool pci_bar_is_memory(pcidevaddr_t dev, int bar_num);
 extern bool pci_bar_is_valid(pcidevaddr_t dev, int bar_num);
 
+int pci_testdev(void);
+
 /*
  * pci-testdev is a driver for the pci-testdev qemu pci device. The
  * device enables testing mmio and portio exits, and measuring their
@@ -49,7 +51,12 @@ extern bool pci_bar_is_valid(pcidevaddr_t dev, int bar_num);
 #define PCI_VENDOR_ID_REDHAT		0x1b36
 #define PCI_DEVICE_ID_REDHAT_TEST	0x0005
 
+/*
+ * pci-testdev supports at least three types of tests (via mmio and
+ * portio BARs): no-eventfd, wildcard-eventfd and datamatch-eventfd
+ */
 #define PCI_TESTDEV_NUM_BARS		2
+#define PCI_TESTDEV_NUM_TESTS		3
 
 struct pci_test_dev_hdr {
 	uint8_t  test;
