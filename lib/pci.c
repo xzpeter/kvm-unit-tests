@@ -126,3 +126,81 @@ bool pci_bar_is64(pcidevaddr_t dev, int bar_num)
 	return (bar & PCI_BASE_ADDRESS_MEM_TYPE_MASK) ==
 		      PCI_BASE_ADDRESS_MEM_TYPE_64;
 }
+
+static void pci_dev_print(pcidevaddr_t dev)
+{
+	uint16_t vendor_id = pci_config_readw(dev, PCI_VENDOR_ID);
+	uint16_t device_id = pci_config_readw(dev, PCI_DEVICE_ID);
+	uint8_t header = pci_config_readb(dev, PCI_HEADER_TYPE);
+	uint8_t progif = pci_config_readb(dev, PCI_CLASS_PROG);
+	uint8_t subclass = pci_config_readb(dev, PCI_CLASS_DEVICE);
+	uint8_t class = pci_config_readb(dev, PCI_CLASS_DEVICE + 1);
+	int i;
+
+	printf("dev %2d fn %d vendor_id %04x device_id %04x type %02x "
+	       "progif %02x class %02x subclass %02x\n",
+	       dev / 8, dev % 8, vendor_id, device_id, header,
+	       progif, class, subclass);
+
+	if ((header & PCI_HEADER_TYPE_MASK) != PCI_HEADER_TYPE_NORMAL)
+		return;
+
+	for (i = 0; i < 6; i++) {
+		phys_addr_t size, start, end;
+		uint32_t bar;
+
+		size = pci_bar_size(dev, i);
+		if (!size)
+			continue;
+
+		start = pci_bar_get_addr(dev, i);
+		end = start + size - 1;
+
+		if (pci_bar_is64(dev, i)) {
+			printf("\tBAR#%d,%d [%" PRIx64 "-%" PRIx64 " ",
+			       i, i + 1, start, end);
+			i++;
+		} else {
+			printf("\tBAR#%d    [%02x-%02x ",
+			       i, (uint32_t)start, (uint32_t)end);
+		}
+
+		bar = pci_bar_get(dev, i);
+
+		if (bar & PCI_BASE_ADDRESS_SPACE_IO) {
+			printf("PIO]\n");
+			continue;
+		}
+
+		printf("MEM");
+
+		switch (bar & PCI_BASE_ADDRESS_MEM_TYPE_MASK) {
+		case PCI_BASE_ADDRESS_MEM_TYPE_32:
+			printf("32");
+			break;
+		case PCI_BASE_ADDRESS_MEM_TYPE_1M:
+			printf("1M");
+			break;
+		case PCI_BASE_ADDRESS_MEM_TYPE_64:
+			printf("64");
+			break;
+		default:
+			assert(0);
+		}
+
+		if (bar & PCI_BASE_ADDRESS_MEM_PREFETCH)
+			printf("/p");
+
+		printf("]\n");
+	}
+}
+
+void pci_print(void)
+{
+	pcidevaddr_t dev;
+
+	for (dev = 0; dev < 256; ++dev) {
+		if (pci_dev_exists(dev))
+			pci_dev_print(dev);
+	}
+}
