@@ -27,13 +27,13 @@ pcidevaddr_t pci_find_dev(uint16_t vendor_id, uint16_t device_id)
 	return PCIDEVADDR_INVALID;
 }
 
-static uint32_t pci_bar_mask(uint32_t bar)
+uint32_t pci_bar_mask(uint32_t bar)
 {
 	return (bar & PCI_BASE_ADDRESS_SPACE_IO) ?
 		PCI_BASE_ADDRESS_IO_MASK : PCI_BASE_ADDRESS_MEM_MASK;
 }
 
-static uint32_t pci_bar_get(pcidevaddr_t dev, int bar_num)
+uint32_t pci_bar_get(pcidevaddr_t dev, int bar_num)
 {
 	return pci_config_readl(dev, PCI_BASE_ADDRESS_0 + bar_num * 4);
 }
