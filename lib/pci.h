@@ -18,6 +18,9 @@ enum {
 #define PCI_BAR_NUM                     (6)
 #define PCI_DEVFN_MAX                   (256)
 
+#define PCI_BDF_GET_DEVFN(x)            ((x) & 0xff)
+#define PCI_BDF_GET_BUS(x)              (((x) >> 8) & 0xff)
+
 struct pci_dev {
 	uint16_t pci_bdf;
 	phys_addr_t pci_bar[PCI_BAR_NUM];
