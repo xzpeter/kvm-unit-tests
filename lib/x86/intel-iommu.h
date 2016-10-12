@@ -20,6 +20,7 @@
 #include "isr.h"
 #include "smp.h"
 #include "desc.h"
+#include "pci.h"
 #include "asm/io.h"
 
 #define Q35_HOST_BRIDGE_IOMMU_ADDR  0xfed90000ULL
@@ -91,6 +92,27 @@
 #define VTD_GCMD_ONE_SHOT_BITS  (VTD_GCMD_IR_TABLE | VTD_GCMD_WBF | \
 				 VTD_GCMD_SFL | VTD_GCMD_ROOT)
 
+/* Supported Adjusted Guest Address Widths */
+#define VTD_CAP_SAGAW_SHIFT         8
+/* 39-bit AGAW, 3-level page-table */
+#define VTD_CAP_SAGAW_39bit         (0x2ULL << VTD_CAP_SAGAW_SHIFT)
+/* 48-bit AGAW, 4-level page-table */
+#define VTD_CAP_SAGAW_48bit         (0x4ULL << VTD_CAP_SAGAW_SHIFT)
+#define VTD_CAP_SAGAW               VTD_CAP_SAGAW_39bit
+
+/* Both 1G/2M huge pages */
+#define VTD_CAP_SLLPS               ((1ULL << 34) | (1ULL << 35))
+
+#define VTD_CONTEXT_TT_MULTI_LEVEL  0
+#define VTD_CONTEXT_TT_DEV_IOTLB    1
+#define VTD_CONTEXT_TT_PASS_THROUGH 2
+
+#define VTD_PTE_R                   (1 << 0)
+#define VTD_PTE_W                   (1 << 1)
+#define VTD_PTE_RW                  (VTD_PTE_R | VTD_PTE_W)
+#define VTD_PTE_ADDR                GENMASK_ULL(51, 12)
+#define VTD_PTE_HUGE                (1 << 7)
+
 #define vtd_reg(reg) ((volatile void *)(Q35_HOST_BRIDGE_IOMMU_ADDR + reg))
 
 static inline void vtd_writel(unsigned int reg, uint32_t value)
@@ -114,5 +136,6 @@ static inline uint64_t vtd_readq(unsigned int reg)
 }
 
 void vtd_init(void);
+void vtd_map_range(uint16_t sid, phys_addr_t iova, phys_addr_t pa, size_t size);
 
 #endif
