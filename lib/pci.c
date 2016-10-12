@@ -7,6 +7,18 @@
 #include "pci.h"
 #include "asm/pci.h"
 
+void pci_cmd_set_clr(struct pci_dev *dev, uint16_t set, uint16_t clr)
+{
+	uint16_t val = pci_config_readw(dev->bdf, PCI_COMMAND);
+
+	/* No overlap is allowed */
+	assert((set & clr) == 0);
+	val |= set;
+	val &= ~clr;
+
+	pci_config_writew(dev->bdf, PCI_COMMAND, val);
+}
+
 bool pci_dev_exists(pcidevaddr_t dev)
 {
 	return (pci_config_readw(dev, PCI_VENDOR_ID) != 0xffff &&
