@@ -7,6 +7,69 @@
 #include "pci.h"
 #include "asm/pci.h"
 
+typedef void (*pci_cap_handler)(struct pci_dev *dev, int cap_offset);
+
+static void pci_cap_msi_handler(struct pci_dev *dev, int cap_offset)
+{
+	printf("Detected MSI for device 0x%x offset 0x%x\n",
+	       dev->pci_bdf, cap_offset);
+	dev->msi_offset = cap_offset;
+}
+
+static pci_cap_handler cap_handlers[0xff] = {
+	[PCI_CAP_ID_MSI] = pci_cap_msi_handler,
+};
+
+void pci_cap_walk(struct pci_dev *dev)
+{
+	uint8_t cap_offset;
+	uint8_t cap_id;
+
+	cap_offset = pci_config_readb(dev->pci_bdf, PCI_CAPABILITY_LIST);
+	while (cap_offset) {
+		cap_id = pci_config_readb(dev->pci_bdf, cap_offset);
+		printf("PCI detected cap 0x%x\n", cap_id);
+		if (cap_handlers[cap_id])
+			cap_handlers[cap_id](dev, cap_offset);
+		cap_offset = pci_config_readb(dev->pci_bdf, cap_offset + 1);
+	}
+}
+
+int pci_setup_msi(struct pci_dev *dev, uint64_t msi_addr, uint32_t msi_data)
+{
+	uint16_t msi_control;
+	uint16_t offset;
+	pcidevaddr_t addr = dev->pci_bdf;
+
+	assert(dev);
+
+	if (!dev->msi_offset) {
+		printf("MSI: dev 0x%x does not support MSI.\n", addr);
+		return -1;
+	}
+
+	offset = dev->msi_offset;
+	msi_control = pci_config_readw(addr, offset + PCI_MSI_FLAGS);
+	pci_config_writel(addr, offset + PCI_MSI_ADDRESS_LO,
+			  msi_addr & 0xffffffff);
+
+	if (msi_control & PCI_MSI_FLAGS_64BIT) {
+		pci_config_writel(addr, offset + PCI_MSI_ADDRESS_HI,
+				  (uint32_t)(msi_addr >> 32));
+		pci_config_writel(addr, offset + PCI_MSI_DATA_64, msi_data);
+		printf("MSI: dev 0x%x init 64bit address: ", addr);
+	} else {
+		pci_config_writel(addr, offset + PCI_MSI_DATA_32, msi_data);
+		printf("MSI: dev 0x%x init 32bit address: ", addr);
+	}
+	printf("addr=0x%lx, data=0x%x\n", msi_addr, msi_data);
+
+	msi_control |= PCI_MSI_FLAGS_ENABLE;
+	pci_config_writew(addr, offset + PCI_MSI_FLAGS, msi_control);
+
+	return 0;
+}
+
 void pci_set_master(struct pci_dev *dev, int master)
 {
 	uint32_t val = pci_config_readw(dev->pci_bdf, PCI_COMMAND);
@@ -20,6 +83,10 @@ bool pci_dev_exists(pcidevaddr_t dev)
 		pci_config_readw(dev, PCI_DEVICE_ID) != 0xffff);
 }
 
+/*
+ * Scan bus look for a specific device. Only bus 0 scanned for now.
+ * After the scan, a pci_dev is returned with correct BAR information.
+ */
 void pci_dev_init(struct pci_dev *dev, pcidevaddr_t bdf)
 {
        memset(dev, 0, sizeof(*dev));
@@ -60,6 +127,7 @@ int pci_enable_defaults(struct pci_dev *dev)
 {
 	pci_scan_bars(dev);
 	pci_set_master(dev, 1);
+	pci_cap_walk(dev);
 	return 0;
 }
 
