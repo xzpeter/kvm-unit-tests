@@ -7,6 +7,13 @@
 #include "pci.h"
 #include "asm/pci.h"
 
+void pci_set_master(struct pci_dev *dev, int master)
+{
+	uint32_t val = pci_config_readw(dev->pci_bdf, PCI_COMMAND);
+	val |= PCI_COMMAND_MASTER;
+	pci_config_writew(dev->pci_bdf, PCI_COMMAND, val);
+}
+
 bool pci_dev_exists(pcidevaddr_t dev)
 {
 	return (pci_config_readw(dev, PCI_VENDOR_ID) != 0xffff &&
