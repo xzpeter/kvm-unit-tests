@@ -33,6 +33,12 @@
 #define __ALIGN_MASK(x, mask)	(((x) + (mask)) & ~(mask))
 #define __ALIGN(x, a)		__ALIGN_MASK(x, (typeof(x))(a) - 1)
 #define ALIGN(x, a)		__ALIGN((x), (a))
+#define IS_ALIGNED(x, a)	(((x) & ((typeof(x))(a) - 1)) == 0)
+
+#define SZ_4K			(0x1000)
+#define SZ_64K			(0x10000)
+#define SZ_2M			(0x200000)
+#define SZ_1G			(0x40000000)
 
 typedef uint8_t		u8;
 typedef int8_t		s8;
