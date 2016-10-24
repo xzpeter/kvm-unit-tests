@@ -249,3 +249,11 @@ void pci_scan_bars(struct pci_dev *dev)
 		dev->bar[i] = pci_bar_get_addr(dev, i);
 	}
 }
+
+int pci_enable_defaults(struct pci_dev *dev)
+{
+	pci_scan_bars(dev);
+	/* Enable device DMA operations */
+	pci_cmd_set_clr(dev, PCI_COMMAND_MASTER, 0);
+	return 0;
+}
