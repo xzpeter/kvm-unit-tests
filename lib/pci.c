@@ -13,18 +13,26 @@ bool pci_dev_exists(pcidevaddr_t dev)
 		pci_config_readw(dev, PCI_DEVICE_ID) != 0xffff);
 }
 
+void pci_dev_init(struct pci_dev *dev, pcidevaddr_t bdf)
+{
+       memset(dev, 0, sizeof(*dev));
+       dev->pci_bdf = bdf;
+}
+
 /* Scan bus look for a specific device. Only bus 0 scanned for now. */
-pcidevaddr_t pci_find_dev(uint16_t vendor_id, uint16_t device_id)
+int pci_find_dev(struct pci_dev *pci_dev, uint16_t vendor_id, uint16_t device_id)
 {
 	pcidevaddr_t dev;
 
-	for (dev = 0; dev < 256; ++dev) {
+	for (dev = 0; dev < PCI_DEVFN_MAX; ++dev) {
 		if (pci_config_readw(dev, PCI_VENDOR_ID) == vendor_id &&
-		    pci_config_readw(dev, PCI_DEVICE_ID) == device_id)
-			return dev;
+		    pci_config_readw(dev, PCI_DEVICE_ID) == device_id) {
+			pci_dev_init(pci_dev, dev);
+			return 0;
+		}
 	}
 
-	return PCIDEVADDR_INVALID;
+	return -1;
 }
 
 uint32_t pci_bar_mask(uint32_t bar)
@@ -33,12 +41,13 @@ uint32_t pci_bar_mask(uint32_t bar)
 		PCI_BASE_ADDRESS_IO_MASK : PCI_BASE_ADDRESS_MEM_MASK;
 }
 
-uint32_t pci_bar_get(pcidevaddr_t dev, int bar_num)
+uint32_t pci_bar_get(struct pci_dev *dev, int bar_num)
 {
-	return pci_config_readl(dev, PCI_BASE_ADDRESS_0 + bar_num * 4);
+	return pci_config_readl(dev->pci_bdf, PCI_BASE_ADDRESS_0 +
+				bar_num * 4);
 }
 
-phys_addr_t pci_bar_get_addr(pcidevaddr_t dev, int bar_num)
+phys_addr_t pci_bar_get_addr(struct pci_dev *dev, int bar_num)
 {
 	uint32_t bar = pci_bar_get(dev, bar_num);
 	uint32_t mask = pci_bar_mask(bar);
@@ -47,17 +56,18 @@ phys_addr_t pci_bar_get_addr(pcidevaddr_t dev, int bar_num)
 	if (pci_bar_is64(dev, bar_num))
 		addr |= (uint64_t)pci_bar_get(dev, bar_num + 1) << 32;
 
-	return pci_translate_addr(dev, addr);
+	return pci_translate_addr(dev->pci_bdf, addr);
 }
 
-void pci_bar_set_addr(pcidevaddr_t dev, int bar_num, phys_addr_t addr)
+void pci_bar_set_addr(struct pci_dev *dev, int bar_num, phys_addr_t addr)
 {
 	int off = PCI_BASE_ADDRESS_0 + bar_num * 4;
 
-	pci_config_writel(dev, off, (uint32_t)addr);
+	pci_config_writel(dev->pci_bdf, off, (uint32_t)addr);
 
 	if (pci_bar_is64(dev, bar_num))
-		pci_config_writel(dev, off + 4, (uint32_t)(addr >> 32));
+		pci_config_writel(dev->pci_bdf, off + 4,
+				  (uint32_t)(addr >> 32));
 }
 
 /*
@@ -70,20 +80,21 @@ void pci_bar_set_addr(pcidevaddr_t dev, int bar_num, phys_addr_t addr)
  * The following pci_bar_size_helper() and pci_bar_size() functions
  * implement the algorithm.
  */
-static uint32_t pci_bar_size_helper(pcidevaddr_t dev, int bar_num)
+static uint32_t pci_bar_size_helper(struct pci_dev *dev, int bar_num)
 {
 	int off = PCI_BASE_ADDRESS_0 + bar_num * 4;
+	uint16_t bdf = dev->pci_bdf;
 	uint32_t bar, val;
 
-	bar = pci_config_readl(dev, off);
-	pci_config_writel(dev, off, ~0u);
-	val = pci_config_readl(dev, off);
-	pci_config_writel(dev, off, bar);
+	bar = pci_config_readl(bdf, off);
+	pci_config_writel(bdf, off, ~0u);
+	val = pci_config_readl(bdf, off);
+	pci_config_writel(bdf, off, bar);
 
 	return val;
 }
 
-phys_addr_t pci_bar_size(pcidevaddr_t dev, int bar_num)
+phys_addr_t pci_bar_size(struct pci_dev *dev, int bar_num)
 {
 	uint32_t bar, size;
 
@@ -104,19 +115,19 @@ phys_addr_t pci_bar_size(pcidevaddr_t dev, int bar_num)
 	}
 }
 
-bool pci_bar_is_memory(pcidevaddr_t dev, int bar_num)
+bool pci_bar_is_memory(struct pci_dev *dev, int bar_num)
 {
 	uint32_t bar = pci_bar_get(dev, bar_num);
 
 	return !(bar & PCI_BASE_ADDRESS_SPACE_IO);
 }
 
-bool pci_bar_is_valid(pcidevaddr_t dev, int bar_num)
+bool pci_bar_is_valid(struct pci_dev *dev, int bar_num)
 {
 	return pci_bar_get(dev, bar_num);
 }
 
-bool pci_bar_is64(pcidevaddr_t dev, int bar_num)
+bool pci_bar_is64(struct pci_dev *dev, int bar_num)
 {
 	uint32_t bar = pci_bar_get(dev, bar_num);
 
@@ -135,6 +146,7 @@ static void pci_dev_print(pcidevaddr_t dev)
 	uint8_t progif = pci_config_readb(dev, PCI_CLASS_PROG);
 	uint8_t subclass = pci_config_readb(dev, PCI_CLASS_DEVICE);
 	uint8_t class = pci_config_readb(dev, PCI_CLASS_DEVICE + 1);
+	struct pci_dev pci_dev;
 	int i;
 
 	printf("dev %2d fn %d vendor_id %04x device_id %04x type %02x "
@@ -145,18 +157,20 @@ static void pci_dev_print(pcidevaddr_t dev)
 	if ((header & PCI_HEADER_TYPE_MASK) != PCI_HEADER_TYPE_NORMAL)
 		return;
 
+	pci_dev_init(&pci_dev, dev);
+
 	for (i = 0; i < 6; i++) {
 		phys_addr_t size, start, end;
 		uint32_t bar;
 
-		size = pci_bar_size(dev, i);
+		size = pci_bar_size(&pci_dev, i);
 		if (!size)
 			continue;
 
-		start = pci_bar_get_addr(dev, i);
+		start = pci_bar_get_addr(&pci_dev, i);
 		end = start + size - 1;
 
-		if (pci_bar_is64(dev, i)) {
+		if (pci_bar_is64(&pci_dev, i)) {
 			printf("\tBAR#%d,%d [%" PRIx64 "-%" PRIx64 " ",
 			       i, i + 1, start, end);
 			i++;
@@ -165,7 +179,7 @@ static void pci_dev_print(pcidevaddr_t dev)
 			       i, (uint32_t)start, (uint32_t)end);
 		}
 
-		bar = pci_bar_get(dev, i);
+		bar = pci_bar_get(&pci_dev, i);
 
 		if (bar & PCI_BASE_ADDRESS_SPACE_IO) {
 			printf("PIO]\n");

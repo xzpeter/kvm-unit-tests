@@ -163,26 +163,27 @@ static int pci_testdev_all(struct pci_test_dev_hdr *test,
 
 int pci_testdev(void)
 {
+	struct pci_dev pci_dev;
 	phys_addr_t addr;
 	void __iomem *mem, *io;
-	pcidevaddr_t dev;
 	int nr_tests = 0;
 	bool ret;
 
-	dev = pci_find_dev(PCI_VENDOR_ID_REDHAT, PCI_DEVICE_ID_REDHAT_TEST);
-	if (dev == PCIDEVADDR_INVALID) {
+	ret = pci_find_dev(&pci_dev, PCI_VENDOR_ID_REDHAT,
+			   PCI_DEVICE_ID_REDHAT_TEST);
+	if (ret == -1) {
 		printf("'pci-testdev' device is not found, "
 		       "check QEMU '-device pci-testdev' parameter\n");
 		return -1;
 	}
 
-	ret = pci_bar_is_valid(dev, 0) && pci_bar_is_valid(dev, 1);
+	ret = pci_bar_is_valid(&pci_dev, 0) && pci_bar_is_valid(&pci_dev, 1);
 	assert(ret);
 
-	addr = pci_bar_get_addr(dev, 0);
+	addr = pci_bar_get_addr(&pci_dev, 0);
 	mem = ioremap(addr, PAGE_SIZE);
 
-	addr = pci_bar_get_addr(dev, 1);
+	addr = pci_bar_get_addr(&pci_dev, 1);
 	io = (void *)(unsigned long)addr;
 
 	nr_tests += pci_testdev_all(mem, &pci_testdev_mem_ops);
