@@ -15,13 +15,16 @@ enum {
 	PCIDEVADDR_INVALID = 0xffff,
 };
 
+#define PCI_BAR_NUM                     (6)
 #define PCI_DEVFN_MAX                   (256)
 
 struct pci_dev {
 	uint16_t pci_bdf;
+	phys_addr_t pci_bar[PCI_BAR_NUM];
 };
 
 void pci_dev_init(struct pci_dev *dev, pcidevaddr_t bdf);
+void pci_scan_bars(struct pci_dev *dev);
 
 extern bool pci_probe(void);
 extern void pci_print(void);

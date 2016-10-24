@@ -35,6 +35,20 @@ int pci_find_dev(struct pci_dev *pci_dev, uint16_t vendor_id, uint16_t device_id
 	return -1;
 }
 
+void pci_scan_bars(struct pci_dev *dev)
+{
+	int i = 0;
+
+	for (i = 0; i < PCI_BAR_NUM; i++) {
+		if (!pci_bar_is_valid(dev, i))
+			continue;
+		dev->pci_bar[i] = pci_bar_get_addr(dev, i);
+		printf("PCI: init dev 0x%04x BAR %d [%s] addr 0x%lx\n",
+		       dev->pci_bdf, i, pci_bar_is_memory(dev, i) ?
+		       "MEM" : "IO", dev->pci_bar[i]);
+	}
+}
+
 uint32_t pci_bar_mask(uint32_t bar)
 {
 	return (bar & PCI_BASE_ADDRESS_SPACE_IO) ?
