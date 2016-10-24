@@ -56,6 +56,13 @@ void pci_scan_bars(struct pci_dev *dev)
 	}
 }
 
+int pci_enable_defaults(struct pci_dev *dev)
+{
+	pci_scan_bars(dev);
+	pci_set_master(dev, 1);
+	return 0;
+}
+
 uint32_t pci_bar_mask(uint32_t bar)
 {
 	return (bar & PCI_BASE_ADDRESS_SPACE_IO) ?

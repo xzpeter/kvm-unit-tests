@@ -26,6 +26,7 @@ struct pci_dev {
 void pci_dev_init(struct pci_dev *dev, pcidevaddr_t bdf);
 void pci_scan_bars(struct pci_dev *dev);
 void pci_set_master(struct pci_dev *dev, int master);
+int pci_enable_defaults(struct pci_dev *dev);
 
 extern bool pci_probe(void);
 extern void pci_print(void);
