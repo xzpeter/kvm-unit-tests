@@ -68,6 +68,8 @@ int pci_testdev(void);
  * pci-testdev supports at least three types of tests (via mmio and
  * portio BARs): no-eventfd, wildcard-eventfd and datamatch-eventfd
  */
+#define PCI_TESTDEV_BAR_MEM		0
+#define PCI_TESTDEV_BAR_IO		1
 #define PCI_TESTDEV_NUM_BARS		2
 #define PCI_TESTDEV_NUM_TESTS		3
 
