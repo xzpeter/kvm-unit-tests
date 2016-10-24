@@ -211,6 +211,7 @@ static bool pci_alloc_resource(pcidevaddr_t dev, int bar_num, u64 *addr)
 
 bool pci_probe(void)
 {
+	struct pci_dev pci_dev;
 	pcidevaddr_t dev;
 	u8 header;
 	u32 cmd;
@@ -221,9 +222,11 @@ bool pci_probe(void)
 	if (!pci_host_bridge)
 		return false;
 
-	for (dev = 0; dev < 256; dev++) {
+	for (dev = 0; dev < PCI_DEVFN_MAX; dev++) {
 		if (!pci_dev_exists(dev))
 			continue;
+
+		pci_dev_init(&pci_dev, dev);
 
 		/* We are only interested in normal PCI devices */
 		header = pci_config_readb(dev, PCI_HEADER_TYPE);
@@ -236,15 +239,15 @@ bool pci_probe(void)
 			u64 addr;
 
 			if (pci_alloc_resource(dev, i, &addr)) {
-				pci_bar_set_addr(dev, i, addr);
+				pci_bar_set_addr(&pci_dev, i, addr);
 
-				if (pci_bar_is_memory(dev, i))
+				if (pci_bar_is_memory(&pci_dev, i))
 					cmd |= PCI_COMMAND_MEMORY;
 				else
 					cmd |= PCI_COMMAND_IO;
 			}
 
-			if (pci_bar_is64(dev, i))
+			if (pci_bar_is64(&pci_dev, i))
 				i++;
 		}
 
