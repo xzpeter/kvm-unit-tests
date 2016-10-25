@@ -291,6 +291,18 @@ u32 pci_config_readl(pcidevaddr_t dev, u8 off)
 	return readl(conf + off);
 }
 
+void pci_config_writeb(pcidevaddr_t dev, u8 off, u8 val)
+{
+	void __iomem *conf = pci_get_dev_conf(pci_host_bridge, dev);
+	writeb(val, conf + off);
+}
+
+void pci_config_writew(pcidevaddr_t dev, u8 off, u16 val)
+{
+	void __iomem *conf = pci_get_dev_conf(pci_host_bridge, dev);
+	writew(val, conf + off);
+}
+
 void pci_config_writel(pcidevaddr_t dev, u8 off, u32 val)
 {
 	void __iomem *conf = pci_get_dev_conf(pci_host_bridge, dev);

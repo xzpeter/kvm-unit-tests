@@ -29,6 +29,20 @@ static inline uint32_t pci_config_readl(pcidevaddr_t dev, uint8_t reg)
     return inl(0xCFC);
 }
 
+static inline void pci_config_writeb(pcidevaddr_t dev, uint8_t reg,
+				     uint8_t val)
+{
+    outl(PCI_CONF1_ADDRESS(dev, reg), 0xCF8);
+    outb(val, 0xCFC);
+}
+
+static inline void pci_config_writew(pcidevaddr_t dev, uint8_t reg,
+				     uint32_t val)
+{
+    outl(PCI_CONF1_ADDRESS(dev, reg), 0xCF8);
+    outw(val, 0xCFC);
+}
+
 static inline void pci_config_writel(pcidevaddr_t dev, uint8_t reg, uint32_t val)
 {
     outl(PCI_CONF1_ADDRESS(dev, reg), 0xCF8);
